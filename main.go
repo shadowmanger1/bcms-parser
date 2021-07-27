@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/secsy/goftp"
 )
 
@@ -33,6 +33,7 @@ type Report struct {
 	AgentRecords []AgentReportRecord
 	VDNRecords   []VDNReportRecord
 	Trunks       int
+	ReportType   string
 }
 
 type SplitReportRecord struct {
@@ -124,6 +125,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		r.ServiceLevel, _ = strconv.Atoi(strings.TrimSpace(lines[4][74:78]))
 		r.FileName = file.Name()
 		r.SwitchName = strings.TrimSpace(lines[2][13:44])
+		r.ReportType = "Split"
 
 		var reportLines []string = append(lines[10:19], append(lines[32:41], lines[54:60]...)...)
 
@@ -164,6 +166,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		r.Trunks, _ = strconv.Atoi(strings.TrimSpace(lines[4][74:78]))
 		r.FileName = file.Name()
 		r.SwitchName = strings.TrimSpace(lines[2][13:44])
+		r.ReportType = "Trunk"
 
 		var reportLines []string = append(lines[10:19], append(lines[32:41], lines[54:57]...)...)
 
@@ -202,6 +205,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.FileName = file.Name()
 		r.SwitchName = strings.TrimSpace(lines[2][13:44])
+		r.ReportType = "Agent"
 
 		var reportLines []string = append(lines[10:19], append(lines[32:41], lines[54:57]...)...)
 
@@ -239,6 +243,8 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.FileName = file.Name()
 		r.SwitchName = strings.TrimSpace(lines[2][13:44])
+		r.ReportType = "VDN"
+		r.ServiceLevel, _ = strconv.Atoi(strings.TrimSpace(lines[4][74:78]))
 
 		var reportLines []string = append(lines[10:19], append(lines[32:41], lines[54:57]...)...)
 
@@ -260,28 +266,39 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 			fmt.Println(record)
 		}
 		fmt.Println(r)
-		sqlRequest()
+
+		sqlReports := `INSERT INTO Reports ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
+		sqlReports += fmt.Sprintf(" (%s, %s, %s, %d, %s, %d, %s, %s, %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
+		sqlRecords := `INSERT INTO VDNReportRecords ("ReportID", "Time", "CallsOffered", "ACDCalls", "AvgSpeedAns", "AbandCalls", "AvgAbandTime", "AvgTalkHold", "ConnCalls", "FlowOut", "BusyDisc", "InServLvlPercent") VALUES`
+		for _, record := range r.VDNRecords {
+			sqlRecords += fmt.Sprintf(" ($1, %s, %d, %d, %s, %d, %s, %s, %d, %d, %d, %d),", record.Time, record.CallsOffered, record.ACDCalls, record.AvgSpeedAns, record.AbandCalls, record.AvgAbandTime, record.AvgTalkHold, record.ConnCalls, record.FlowOut, record.BusyDisc, record.InServLvlPercent)
+		}
+		sqlRecords = sqlRecords[:len(sqlRecords)-1] + ";"
+
+		querySQL(sqlReports, sqlRecords, r)
 	}
 }
 
-func sqlRequest() {
+func querySQL(sqlReports string, sqlRecords string, r Report) {
 	// urlExample := "postgres://username:password@localhost:5432/database_name"
-	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	dbpool, err := pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close(context.Background())
+	defer dbpool.Close()
 
-	var name string
-	var weight int64
-	err = conn.QueryRow(context.Background(), "select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
+	reportID := 0
+	err = dbpool.QueryRow(context.Background(), sqlReports).Scan(&reportID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
 	}
-
-	fmt.Println(name, weight)
+	err = dbpool.QueryRow(context.Background(), sqlRecords, reportID).Scan()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func main() {
