@@ -150,6 +150,16 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 			fmt.Println(record)
 		}
 		fmt.Println(r)
+		sqlReports := `INSERT INTO public."Reports" ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
+		sqlReports += fmt.Sprintf(" ('%s', '%s', '%s', %d, '%s', %d, '%s', '%s', %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
+		sqlRecords := `INSERT INTO public."SplitReportRecords" ("ReportID", "Time", "ACDCalls", "AvgSpeedAns", "AbandCalls", "AvgAbandTime", "AvgTalkTime", "TotalAfterCall", "FlowIn", "FlowOut", "TotalAUX", "AvgStaffed", "InServiceLevelPercent") VALUES`
+		for _, record := range r.SplitRecords {
+			sqlRecords += fmt.Sprintf(" ($1, '%s', %d, '%s', %d, '%s', '%s', '%s', %d, %d, '%s', %f, %d),", record.Time, record.ACDCalls, record.AvgSpeedAns, record.AbandCalls, record.AvgAbandTime, record.AvgTalkTime, record.TotalAfterCall, record.FlowIn, record.FlowOut, record.TotalAUX, record.AvgStaffed, record.InServiceLevelPercent)
+		}
+		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
+
+		querySQL(sqlReports, sqlRecords, r)
+
 	} else if strings.Contains(file.Name(), "bcms_tru") {
 		return
 		buf := new(bytes.Buffer)
@@ -191,6 +201,16 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 			fmt.Println(record)
 		}
 		fmt.Println(r)
+		sqlReports := `INSERT INTO public."Reports" ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
+		sqlReports += fmt.Sprintf(" ('%s', '%s', '%s', %d, '%s', %d, '%s', '%s', %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
+		sqlRecords := `INSERT INTO public."TrunkReportRecords" ("ReportID", "Time", "IncomingCalls", "IncomingAband", "IncomingTime", "IncomingCCS", "OutgoingCalls", "OutgoingComp", "OutgoingTime", "OutgoingCCS", "AllBusyPercent", "TimeMaintPercent") VALUES`
+		for _, record := range r.TrunkRecords {
+			sqlRecords += fmt.Sprintf(" ($1, '%s', %d, %d, '%s', %f, %d, %d, '%s', %f, %d, %d),", record.Time, record.IncomingCalls, record.IncomingAband, record.IncomingTime, record.IncomingCCS, record.OutgoingCalls, record.OutgoingComp, record.OutgoingTime, record.OutgoingCCS, record.AllBusyPercent, record.TimeMaintPercent)
+		}
+		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
+
+		querySQL(sqlReports, sqlRecords, r)
+
 	} else if strings.Contains(file.Name(), "bcms_ag_") {
 		return
 		buf := new(bytes.Buffer)
@@ -230,6 +250,16 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 			fmt.Println(record)
 		}
 		fmt.Println(r)
+		sqlReports := `INSERT INTO public."Reports" ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
+		sqlReports += fmt.Sprintf(" ('%s', '%s', '%s', %d, '%s', %d, '%s', '%s', %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
+		sqlRecords := `INSERT INTO public."AgentReportRecords" ("ReportID", "Time", "ACDCalls", "AvgTalkTime", "TotalAfterCall", "TotalAvailTime", "TotalAUXOther", "ExtnCalls", "AvgExtnTime", "TotalTimeStaffed", "TotalHoldTime") VALUES`
+		for _, record := range r.AgentRecords {
+			sqlRecords += fmt.Sprintf(" ($1, '%s', %d, '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s'),", record.Time, record.ACDCalls, record.AvgTalkTime, record.TotalAfterCall, record.TotalAvailTime, record.TotalAUXOther, record.ExtnCalls, record.AvgExtnTime, record.TotalTimeStaffed, record.TotalHoldTime)
+		}
+		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
+
+		querySQL(sqlReports, sqlRecords, r)
+
 	} else if strings.Contains(file.Name(), "bcms_vdn_") {
 		buf := new(bytes.Buffer)
 		fullFilePath := ftpServerPath + file.Name()
@@ -294,11 +324,6 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 
 	reportID := 0
 	err = dbpool.QueryRow(context.Background(), sqlReports).Scan(&reportID)
-
-	fmt.Println(" ")
-	fmt.Println(sqlReports)
-	fmt.Println("- - -")
-
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
@@ -306,11 +331,6 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 
 	returnVal := 0
 	err = dbpool.QueryRow(context.Background(), sqlRecords, reportID).Scan(&returnVal)
-
-	fmt.Println(" ")
-	fmt.Println(sqlRecords)
-	fmt.Println("- - -")
-
 	if err != nil && err != pgx.ErrNoRows {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
@@ -337,8 +357,17 @@ func main() {
 		panic(err)
 	}
 
+	maxGoroutines := 10
+	guard := make(chan struct{}, maxGoroutines)
+
 	for _, file := range files {
+		guard <- struct{}{} // would block if guard channel is already filled
+		go func() {
+			parseFile(file, client)
+			<-guard
+		}()
 		parseFile(file, client)
 	}
+
 	fmt.Println("done")
 }
