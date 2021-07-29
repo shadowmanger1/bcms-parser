@@ -276,7 +276,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		for _, record := range r.VDNRecords {
 			sqlRecords += fmt.Sprintf(" ($1, '%s', %d, %d, '%s', %d, '%s', '%s', %d, %d, %d, %d),", record.Time, record.CallsOffered, record.ACDCalls, record.AvgSpeedAns, record.AbandCalls, record.AvgAbandTime, record.AvgTalkHold, record.ConnCalls, record.FlowOut, record.BusyDisc, record.InServLvlPercent)
 		}
-		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
+		sqlRecords = sqlRecords[:len(sqlRecords)-1] + ";"
 
 		querySQL(sqlReports, sqlRecords, r)
 	}
@@ -310,6 +310,7 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 	fmt.Println("- - -")
 
 	if err != nil {
+		fmt.Printf("%+v\n", err)
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
 	}
