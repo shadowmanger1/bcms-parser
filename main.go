@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -309,7 +310,8 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 	fmt.Println(sqlRecords)
 	fmt.Println("- - -")
 
-	if err != nil {
+	ErrNoRows := errors.New("sql: no rows in result set")
+	if err != nil && err != ErrNoRows {
 		fmt.Printf("%+v\n", err)
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
