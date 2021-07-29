@@ -310,7 +310,7 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 	fmt.Println(sqlRecords)
 	fmt.Println("- - -")
 
-	ErrNoRows := errors.New("sql: no rows in result set")
+	ErrNoRows := errors.New("no rows in result set")
 	if err != nil && err != ErrNoRows {
 		fmt.Printf("%+v\n", err)
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
