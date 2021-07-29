@@ -321,15 +321,8 @@ func main() {
 		panic(err)
 	}
 
-	maxGoroutines := 5
-	guard := make(chan struct{}, maxGoroutines)
-
 	for _, file := range files {
-		guard <- struct{}{} // would block if guard channel is already filled
-		go func() {
-			parseFile(file, client)
-			<-guard
-		}()
+		parseFile(file, client)
 	}
 	fmt.Println("done")
 }
