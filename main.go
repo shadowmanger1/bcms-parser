@@ -271,10 +271,10 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		fmt.Println(r)
 
 		sqlReports := `INSERT INTO public."Reports" ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
-		sqlReports += fmt.Sprintf(" (\"%s\", \"%s\", \"%s\", %d, \"%s\", %d, \"%s\", \"%s\", %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
+		sqlReports += fmt.Sprintf(" (\'%s\', \'%s\', \'%s\', %d, \'%s\', %d, \'%s\', \'%s\', %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
 		sqlRecords := `INSERT INTO public."VDNReportRecords" ("ReportID", "Time", "CallsOffered", "ACDCalls", "AvgSpeedAns", "AbandCalls", "AvgAbandTime", "AvgTalkHold", "ConnCalls", "FlowOut", "BusyDisc", "InServLvlPercent") VALUES`
 		for _, record := range r.VDNRecords {
-			sqlRecords += fmt.Sprintf(" ($1, \"%s\", %d, %d, \"%s\", %d, \"%s\", \"%s\", %d, %d, %d, %d),", record.Time, record.CallsOffered, record.ACDCalls, record.AvgSpeedAns, record.AbandCalls, record.AvgAbandTime, record.AvgTalkHold, record.ConnCalls, record.FlowOut, record.BusyDisc, record.InServLvlPercent)
+			sqlRecords += fmt.Sprintf(" ($1, \'%s\', %d, %d, \'%s\', %d, \'%s\', \'%s\', %d, %d, %d, %d),", record.Time, record.CallsOffered, record.ACDCalls, record.AvgSpeedAns, record.AbandCalls, record.AvgAbandTime, record.AvgTalkHold, record.ConnCalls, record.FlowOut, record.BusyDisc, record.InServLvlPercent)
 		}
 		sqlRecords = sqlRecords[:len(sqlRecords)-1] + ";"
 
@@ -283,11 +283,6 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 }
 
 func querySQL(sqlReports string, sqlRecords string, r Report) {
-	fmt.Println(" ")
-	fmt.Println(sqlReports)
-	fmt.Println("- - -")
-	fmt.Println(sqlRecords)
-	fmt.Println(" ")
 	// urlExample := "postgres://username:password@localhost:5432/database_name"
 	dbpool, err := pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
@@ -298,11 +293,22 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 
 	reportID := 0
 	err = dbpool.QueryRow(context.Background(), sqlReports).Scan(&reportID)
+
+	fmt.Println(" ")
+	fmt.Println(sqlReports)
+	fmt.Println("- - -")
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
 	}
+
 	err = dbpool.QueryRow(context.Background(), sqlRecords, reportID).Scan()
+
+	fmt.Println(" ")
+	fmt.Println(sqlRecords)
+	fmt.Println("- - -")
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
