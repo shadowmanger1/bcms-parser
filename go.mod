@@ -1,4 +1,4 @@
-module bcms-parser
+module github.com/shadowmanger1/bcms-parser
 
 go 1.16
 
