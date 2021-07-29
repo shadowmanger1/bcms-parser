@@ -3,13 +3,13 @@ package main
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/secsy/goftp"
 )
@@ -310,8 +310,7 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 	fmt.Println(sqlRecords)
 	fmt.Println("- - -")
 
-	if err != nil && err != sql.ErrNoRows {
-		fmt.Printf("%+v\n", err)
+	if err != nil && err != pgx.ErrNoRows {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
 	}
