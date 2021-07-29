@@ -330,7 +330,6 @@ func main() {
 			parseFile(file, client)
 			<-guard
 		}()
-
 	}
 	fmt.Println("done")
 }
