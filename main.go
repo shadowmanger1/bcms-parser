@@ -280,6 +280,11 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 }
 
 func querySQL(sqlReports string, sqlRecords string, r Report) {
+	fmt.Println(" ")
+	fmt.Println(sqlReports)
+	fmt.Println("- - -")
+	fmt.Println(sqlRecords)
+	fmt.Println(" ")
 	// urlExample := "postgres://username:password@localhost:5432/database_name"
 	dbpool, err := pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
