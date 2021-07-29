@@ -229,7 +229,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		r.SwitchName = strings.TrimSpace(lines[2][13:44])
 		r.ReportType = "Agent"
 
-		var reportLines []string = append(lines[10:19], append(lines[32:41], lines[54:57]...)...)
+		var reportLines []string = append(lines[10:19], append(lines[32:41], lines[54:60]...)...)
 
 		for _, line := range reportLines {
 			var record AgentReportRecord
