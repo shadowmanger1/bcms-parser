@@ -270,9 +270,9 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		}
 		fmt.Println(r)
 
-		sqlReports := `INSERT INTO Reports ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
+		sqlReports := `INSERT INTO public."Reports" ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
 		sqlReports += fmt.Sprintf(" (\"%s\", \"%s\", \"%s\", %d, \"%s\", %d, \"%s\", \"%s\", %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
-		sqlRecords := `INSERT INTO VDNReportRecords ("ReportID", "Time", "CallsOffered", "ACDCalls", "AvgSpeedAns", "AbandCalls", "AvgAbandTime", "AvgTalkHold", "ConnCalls", "FlowOut", "BusyDisc", "InServLvlPercent") VALUES`
+		sqlRecords := `INSERT INTO public."VDNReportRecords" ("ReportID", "Time", "CallsOffered", "ACDCalls", "AvgSpeedAns", "AbandCalls", "AvgAbandTime", "AvgTalkHold", "ConnCalls", "FlowOut", "BusyDisc", "InServLvlPercent") VALUES`
 		for _, record := range r.VDNRecords {
 			sqlRecords += fmt.Sprintf(" ($1, \"%s\", %d, %d, \"%s\", %d, \"%s\", \"%s\", %d, %d, %d, %d),", record.Time, record.CallsOffered, record.ACDCalls, record.AvgSpeedAns, record.AbandCalls, record.AvgAbandTime, record.AvgTalkHold, record.ConnCalls, record.FlowOut, record.BusyDisc, record.InServLvlPercent)
 		}
