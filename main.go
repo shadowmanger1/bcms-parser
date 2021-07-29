@@ -109,7 +109,6 @@ func (report *Report) AddTrunkRecord(record TrunkReportRecord) []TrunkReportReco
 
 func parseFile(file os.FileInfo, client *goftp.Client) {
 	if strings.Contains(file.Name(), "bcms_sp") {
-		return
 		buf := new(bytes.Buffer)
 		fullFilePath := ftpServerPath + file.Name()
 		err := client.Retrieve(fullFilePath, buf)
@@ -161,7 +160,6 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		querySQL(sqlReports, sqlRecords, r)
 
 	} else if strings.Contains(file.Name(), "bcms_tru") {
-		return
 		buf := new(bytes.Buffer)
 		fullFilePath := ftpServerPath + file.Name()
 		err := client.Retrieve(fullFilePath, buf)
@@ -212,7 +210,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		querySQL(sqlReports, sqlRecords, r)
 
 	} else if strings.Contains(file.Name(), "bcms_ag_") {
-		return
+
 		buf := new(bytes.Buffer)
 		fullFilePath := ftpServerPath + file.Name()
 		err := client.Retrieve(fullFilePath, buf)
