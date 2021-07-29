@@ -249,7 +249,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		r.ReportType = "VDN"
 		r.ServiceLevel, _ = strconv.Atoi(strings.TrimSpace(lines[4][74:78]))
 
-		var reportLines []string = append(lines[10:19], append(lines[32:41], lines[54:57]...)...)
+		var reportLines []string = append(lines[10:19], append(lines[32:41], lines[54:60]...)...)
 
 		for _, line := range reportLines {
 			var record VDNReportRecord
@@ -276,7 +276,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		for _, record := range r.VDNRecords {
 			sqlRecords += fmt.Sprintf(" ($1, '%s', %d, %d, '%s', %d, '%s', '%s', %d, %d, %d, %d),", record.Time, record.CallsOffered, record.ACDCalls, record.AvgSpeedAns, record.AbandCalls, record.AvgAbandTime, record.AvgTalkHold, record.ConnCalls, record.FlowOut, record.BusyDisc, record.InServLvlPercent)
 		}
-		sqlRecords = sqlRecords[:len(sqlRecords)-1] + ";"
+		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
 
 		querySQL(sqlReports, sqlRecords, r)
 	}
