@@ -261,6 +261,9 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 		querySQL(sqlReports, sqlRecords, r)
 
 	} else if strings.Contains(file.Name(), "bcms_vdn_") {
+		if strings.Contains(file.Name(), "day") {
+			return
+		}
 		buf := new(bytes.Buffer)
 		fullFilePath := ftpServerPath + file.Name()
 		err := client.Retrieve(fullFilePath, buf)
