@@ -351,7 +351,7 @@ func main() {
 
 	files, err := client.ReadDir(ftpServerPath)
 
-	fmt.Println(files)
+	fmt.Printf("%+v\n", files)
 
 	if err != nil {
 		panic(err)
