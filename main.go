@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -333,6 +334,29 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func checkIfFilesAlreadyParced(files []fs.FileInfo) {
+	// urlExample := "postgres://username:password@localhost:5432/database_name"
+	dbpool, err := pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer dbpool.Close()
+
+	_, err = dbpool.Exec(context.Background(), "create TEMP TABLE new_files(filename varchar);")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Exec failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	statement := `INSERT INTO new_files (filename) VALUES`
+	for _, file := range files {
+		statement += fmt.Sprintf(" ('%s'),", file)
+	}
+	statement = statement[:len(statement)-1] + ";"
+
 }
 
 func main() {
