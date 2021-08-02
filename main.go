@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx"
@@ -351,11 +353,6 @@ func main() {
 
 	files, err := client.ReadDir(ftpServerPath)
 
-	for _, file := range files {
-		fmt.Println(file.Name())
-	}
-	return
-
 	if err != nil {
 		panic(err)
 	}
@@ -363,14 +360,17 @@ func main() {
 	maxGoroutines := 10
 	guard := make(chan struct{}, maxGoroutines)
 
+	var wg sync.WaitGroup
 	for _, file := range files {
 		guard <- struct{}{} // would block if guard channel is already filled
-		go func() {
+		wg.Add(1)
+		go func(file fs.FileInfo) {
+			defer wg.Done()
 			parseFile(file, client)
 			<-guard
-		}()
-		parseFile(file, client)
+		}(file)
 	}
+	wg.Wait()
 
 	fmt.Println("done")
 }
