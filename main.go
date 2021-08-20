@@ -109,6 +109,30 @@ func (report *Report) AddTrunkRecord(record TrunkReportRecord) []TrunkReportReco
 	return report.TrunkRecords
 }
 
+func convertClock(st string) string {
+	var m, s int
+	n, err := fmt.Sscanf(st, "%d:%d", &m, &s)
+	if err != nil || n != 2 {
+		return ""
+	}
+	return strconv.Itoa(m*60 + s)
+}
+
+func convertDatetime(dateval string, timeval string) int64 {
+	timevals := strings.Split(timeval, " ")
+	value := dateval + " " + timevals[0] + strings.ToUpper(timevals[1]) + " +0300"
+	layout := "Jan 02, 2006 03:04PM -0700"
+	t, _ := time.Parse(layout, value)
+	return t.Unix()
+}
+
+func convertTimeInterval(dateval string, interval string) string {
+	timeval := "12:00 am"
+	timestamp := convertDatetime(dateval, timeval)
+	hours, _ := strconv.ParseInt(strings.Split(interval, ":")[0], 10, 64)
+	return strconv.FormatInt(hours*3600+timestamp, 10)
+}
+
 func parseFile(file os.FileInfo, client *goftp.Client) {
 	if strings.Contains(file.Name(), "bcms_sp") {
 		buf := new(bytes.Buffer)
@@ -123,6 +147,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 
 		r.DateStamp = lines[2][66:78]
 		r.TimeStamp = lines[2][52:60]
+		r.TimeStamp = strconv.FormatInt(convertDatetime(r.DateStamp, r.TimeStamp), 10)
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.ServiceLevel, _ = strconv.Atoi(strings.TrimSpace(lines[4][74:78]))
@@ -134,16 +159,16 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 
 		for _, line := range reportLines {
 			var record SplitReportRecord
-			record.Time = strings.TrimSpace(line[0:11])
+			record.Time = convertTimeInterval(r.DateStamp, strings.TrimSpace(line[0:11]))
 			record.ACDCalls, _ = strconv.Atoi(strings.TrimSpace(line[12:17]))
-			record.AvgSpeedAns = strings.TrimSpace(line[18:23])
+			record.AvgSpeedAns = convertClock(strings.TrimSpace(line[18:23]))
 			record.AbandCalls, _ = strconv.Atoi(strings.TrimSpace(line[25:29]))
-			record.AvgAbandTime = strings.TrimSpace(line[30:35])
-			record.AvgTalkTime = strings.TrimSpace(line[36:41])
-			record.TotalAfterCall = strings.TrimSpace(line[42:49])
+			record.AvgAbandTime = convertClock(strings.TrimSpace(line[30:35]))
+			record.AvgTalkTime = convertClock(strings.TrimSpace(line[36:41]))
+			record.TotalAfterCall = convertClock(strings.TrimSpace(line[42:49]))
 			record.FlowIn, _ = strconv.Atoi(strings.TrimSpace(line[50:54]))
 			record.FlowOut, _ = strconv.Atoi(strings.TrimSpace(line[55:59]))
-			record.TotalAUX = strings.TrimSpace(line[60:67])
+			record.TotalAUX = convertClock(strings.TrimSpace(line[60:67]))
 			record.AvgStaffed, _ = strconv.ParseFloat(strings.TrimSpace(line[68:73]), 64)
 			record.InServiceLevelPercent, _ = strconv.Atoi(strings.TrimSpace(line[75:78]))
 
@@ -174,6 +199,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 
 		r.DateStamp = lines[2][66:78]
 		r.TimeStamp = lines[2][52:60]
+		r.TimeStamp = strconv.FormatInt(convertDatetime(r.DateStamp, r.TimeStamp), 10)
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.Trunks, _ = strconv.Atoi(strings.TrimSpace(lines[4][74:78]))
@@ -185,14 +211,14 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 
 		for _, line := range reportLines {
 			var record TrunkReportRecord
-			record.Time = strings.TrimSpace(line[0:11])
+			record.Time = convertTimeInterval(r.DateStamp, strings.TrimSpace(line[0:11]))
 			record.IncomingCalls, _ = strconv.Atoi(strings.TrimSpace(line[12:17]))
 			record.IncomingAband, _ = strconv.Atoi(strings.TrimSpace(line[18:23]))
-			record.IncomingTime = strings.TrimSpace(line[24:30])
+			record.IncomingTime = convertClock(strings.TrimSpace(line[24:30]))
 			record.IncomingCCS, _ = strconv.ParseFloat(strings.TrimSpace(line[31:39]), 64)
 			record.OutgoingCalls, _ = strconv.Atoi(strings.TrimSpace(line[40:45]))
 			record.OutgoingComp, _ = strconv.Atoi(strings.TrimSpace(line[46:51]))
-			record.OutgoingTime = strings.TrimSpace(line[52:58])
+			record.OutgoingTime = convertClock(strings.TrimSpace(line[52:58]))
 			record.OutgoingCCS, _ = strconv.ParseFloat(strings.TrimSpace(line[59:67]), 64)
 			record.AllBusyPercent, _ = strconv.Atoi(strings.TrimSpace(line[69:72]))
 			record.TimeMaintPercent, _ = strconv.Atoi(strings.TrimSpace(line[75:78]))
@@ -225,6 +251,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 
 		r.DateStamp = lines[2][66:78]
 		r.TimeStamp = lines[2][52:60]
+		r.TimeStamp = strconv.FormatInt(convertDatetime(r.DateStamp, r.TimeStamp), 10)
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.FileName = file.Name()
@@ -235,16 +262,16 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 
 		for _, line := range reportLines {
 			var record AgentReportRecord
-			record.Time = strings.TrimSpace(line[0:11])
+			record.Time = convertTimeInterval(r.DateStamp, strings.TrimSpace(line[0:11]))
 			record.ACDCalls, _ = strconv.Atoi(strings.TrimSpace(line[12:17]))
-			record.AvgTalkTime = strings.TrimSpace(line[18:24])
-			record.TotalAfterCall = strings.TrimSpace(line[25:32])
-			record.TotalAvailTime = strings.TrimSpace(line[33:40])
-			record.TotalAUXOther = strings.TrimSpace(line[41:48])
+			record.AvgTalkTime = convertClock(strings.TrimSpace(line[18:24]))
+			record.TotalAfterCall = convertClock(strings.TrimSpace(line[25:32]))
+			record.TotalAvailTime = convertClock(strings.TrimSpace(line[33:40]))
+			record.TotalAUXOther = convertClock(strings.TrimSpace(line[41:48]))
 			record.ExtnCalls, _ = strconv.Atoi(strings.TrimSpace(line[49:54]))
-			record.AvgExtnTime = strings.TrimSpace(line[55:61])
-			record.TotalTimeStaffed = strings.TrimSpace(line[62:69])
-			record.TotalHoldTime = strings.TrimSpace(line[70:77])
+			record.AvgExtnTime = convertClock(strings.TrimSpace(line[55:61]))
+			record.TotalTimeStaffed = convertClock(strings.TrimSpace(line[62:69]))
+			record.TotalHoldTime = convertClock(strings.TrimSpace(line[70:77]))
 
 			r.AddAgentRecord(record)
 			fmt.Println(record)
@@ -276,6 +303,7 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 
 		r.DateStamp = lines[2][66:78]
 		r.TimeStamp = lines[2][52:60]
+		r.TimeStamp = strconv.FormatInt(convertDatetime(r.DateStamp, r.TimeStamp), 10)
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.FileName = file.Name()
@@ -287,13 +315,13 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 
 		for _, line := range reportLines {
 			var record VDNReportRecord
-			record.Time = strings.TrimSpace(line[0:11])
+			record.Time = convertTimeInterval(r.DateStamp, strings.TrimSpace(line[0:11]))
 			record.CallsOffered, _ = strconv.Atoi(strings.TrimSpace(line[13:19]))
 			record.ACDCalls, _ = strconv.Atoi(strings.TrimSpace(line[20:25]))
-			record.AvgSpeedAns = strings.TrimSpace(line[26:31])
+			record.AvgSpeedAns = convertClock(strings.TrimSpace(line[26:31]))
 			record.AbandCalls, _ = strconv.Atoi(strings.TrimSpace(line[32:37]))
-			record.AvgAbandTime = strings.TrimSpace(line[38:43])
-			record.AvgTalkHold = strings.TrimSpace(line[44:49])
+			record.AvgAbandTime = convertClock(strings.TrimSpace(line[38:43]))
+			record.AvgTalkHold = convertClock(strings.TrimSpace(line[44:49]))
 			record.ConnCalls, _ = strconv.Atoi(strings.TrimSpace(line[50:56]))
 			record.FlowOut, _ = strconv.Atoi(strings.TrimSpace(line[57:62]))
 			record.BusyDisc, _ = strconv.Atoi(strings.TrimSpace(line[63:68]))
