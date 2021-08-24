@@ -177,7 +177,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		}
 		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
 
-		querySQL(sqlReports, sqlRecords, r)
+		updateTables(sqlReports, sqlRecords, r)
 
 	} else if strings.Contains(file.Name(), "bcms_tru") {
 		buf := new(bytes.Buffer)
@@ -228,7 +228,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		}
 		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
 
-		querySQL(sqlReports, sqlRecords, r)
+		updateTables(sqlReports, sqlRecords, r)
 
 	} else if strings.Contains(file.Name(), "bcms_ag_") {
 
@@ -278,7 +278,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		}
 		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
 
-		querySQL(sqlReports, sqlRecords, r)
+		updateTables(sqlReports, sqlRecords, r)
 
 	} else if strings.Contains(file.Name(), "bcms_vdn_") {
 		if strings.Contains(file.Name(), "day") {
@@ -333,11 +333,11 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		}
 		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
 
-		querySQL(sqlReports, sqlRecords, r)
+		updateTables(sqlReports, sqlRecords, r)
 	}
 }
 
-func querySQL(sqlReports string, sqlRecords string, r Report) {
+func updateTables(sqlReports string, sqlRecords string, r Report) {
 	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL := "postgres://username:password@localhost:5432/database_name"
 	dbpool, err := pgxpool.Connect(context.Background(), connectionString)
 	if err != nil {
@@ -361,6 +361,56 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 	}
 }
 
+func excludeParcedFiles(files []os.FileInfo) []os.FileInfo {
+	return xor(files, getParsedFiles())
+}
+
+func getParsedFiles() (res []string) {
+	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL := "postgres://username:password@localhost:5432/database_name"
+	dbpool, err := pgxpool.Connect(context.Background(), connectionString)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer dbpool.Close()
+
+	rows, err := dbpool.Query(context.Background(), `SELECT "FileName" FROM public."Reports"`)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	var fileName string
+	for rows.Next() {
+		err := rows.Scan(&fileName)
+		if err != nil {
+			panic(err)
+		}
+		res = append(res, fileName)
+	}
+	return res
+}
+
+func xor(list1 []fs.FileInfo, list2 []string) []fs.FileInfo {
+	set1 := make(map[string]bool)
+	for _, s := range list1 {
+		set1[s.Name()] = true
+	}
+	set2 := make(map[string]bool)
+	for _, s := range list2 {
+		set2[s] = true
+	}
+
+	var c []fs.FileInfo
+	for _, s := range list1 {
+		if !set2[s.Name()] {
+			c = append(c, s)
+		}
+	}
+
+	return c
+}
+
 func main() {
 	ftpServerURL := os.Getenv("FTP_IP")   // FTP_IP = "10.249.32.5"
 	ftpServerPath := os.Getenv("FTP_DIR") // FTP_DIR = "/BCMS 103/"
@@ -381,6 +431,8 @@ func main() {
 	}
 
 	files, err := client.ReadDir(ftpServerPath)
+
+	files = excludeParcedFiles(files)
 
 	if err != nil {
 		panic(err)
