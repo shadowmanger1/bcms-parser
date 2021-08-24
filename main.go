@@ -16,13 +16,6 @@ import (
 	"github.com/secsy/goftp"
 )
 
-const (
-	ftpServerURL  = "10.249.32.5"
-	ftpServerPath = "/BCMS 103/"
-	username      = "pbx103"
-	password      = "pbx10301"
-)
-
 type Report struct {
 	DateStamp    string
 	TimeStamp    string
@@ -133,7 +126,7 @@ func convertTimeInterval(dateval string, interval string) string {
 	return strconv.FormatInt(hours*3600+timestamp, 10)
 }
 
-func parseFile(file os.FileInfo, client *goftp.Client) {
+func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 	if strings.Contains(file.Name(), "bcms_sp") {
 		buf := new(bytes.Buffer)
 		fullFilePath := ftpServerPath + file.Name()
@@ -345,8 +338,8 @@ func parseFile(file os.FileInfo, client *goftp.Client) {
 }
 
 func querySQL(sqlReports string, sqlRecords string, r Report) {
-	// urlExample := "postgres://username:password@localhost:5432/database_name"
-	dbpool, err := pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL := "postgres://username:password@localhost:5432/database_name"
+	dbpool, err := pgxpool.Connect(context.Background(), connectionString)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
@@ -369,6 +362,11 @@ func querySQL(sqlReports string, sqlRecords string, r Report) {
 }
 
 func main() {
+	ftpServerURL := os.Getenv("FTP_IP")   // FTP_IP = "10.249.32.5"
+	ftpServerPath := os.Getenv("FTP_DIR") // FTP_DIR = "/BCMS 103/"
+	username := os.Getenv("FTP_USERNAME") // FTP_USERNAME = "pbx103"
+	password := os.Getenv("FTP_PASSWORD") // FTP_PASSWORD = "pbx10301"
+
 	config := goftp.Config{
 		User:               username,
 		Password:           password,
@@ -397,7 +395,7 @@ func main() {
 		wg.Add(1)
 		go func(file fs.FileInfo) {
 			defer wg.Done()
-			parseFile(file, client)
+			parseFile(file, client, ftpServerPath)
 			<-guard
 		}(file)
 	}
