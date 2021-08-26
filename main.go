@@ -120,8 +120,11 @@ func convertDatetime(dateval string, timeval string) int64 {
 	value := dateval + " " + timevals[0] + strings.ToUpper(timevals[1]) + " +0300"
 	layout := "Jan 02, 2006 03:04PM -0700"
 	t, _ := time.Parse(layout, value)
-	println(dateval)
-	println(t.Unix())
+	if t.Unix() < 0 {
+		println(dateval)
+		println(t.Unix())
+		panic("h")
+	}
 	return t.Unix()
 }
 
