@@ -391,7 +391,7 @@ func updateTables(r Report) {
 		}
 	}
 	sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
-	sqlReports := fmt.Sprintf(`INSERT INTO public.reports ("FileName") VALUES ('%s') RETURNING 1;`, r.FileName)
+	sqlReports := fmt.Sprintf(`INSERT INTO public.reports (filename) VALUES ('%s') RETURNING 1;`, r.FileName)
 
 	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL := "postgres://username:password@localhost:5432/database_name"
 	dbpool, err := pgxpool.Connect(context.Background(), connectionString)
