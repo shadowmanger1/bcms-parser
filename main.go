@@ -114,7 +114,7 @@ func convertClock(st string) int {
 func convertDatetime(dateval string, timeval string) int64 {
 	day := strings.Split(dateval, ",")[0][4:]
 	month := dateval[:3]
-	year := dateval[len(dateval)-4:]
+	year := strings.TrimSpace(strings.Split(dateval, ",")[1])
 	dateval = fmt.Sprintf("%s %02s, %s", month, day, year)
 	timevals := strings.Split(timeval, " ")
 	value := dateval + " " + timevals[0] + strings.ToUpper(timevals[1]) + " +0300"
