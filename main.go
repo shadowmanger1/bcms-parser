@@ -18,7 +18,7 @@ import (
 
 type Report struct {
 	DateStamp    string
-	TimeStamp    string
+	TimeStamp    int64
 	Number       int
 	Name         string
 	ServiceLevel int
@@ -33,52 +33,52 @@ type Report struct {
 }
 
 type SplitReportRecord struct {
-	Time                  string
+	Time                  int64
 	ACDCalls              int
-	AvgSpeedAns           string
+	AvgSpeedAns           int
 	AbandCalls            int
-	AvgAbandTime          string
-	AvgTalkTime           string
-	TotalAfterCall        string
+	AvgAbandTime          int
+	AvgTalkTime           int
+	TotalAfterCall        int
 	FlowIn                int
 	FlowOut               int
-	TotalAUX              string
+	TotalAUX              int
 	AvgStaffed            float64
 	InServiceLevelPercent int
 }
 type TrunkReportRecord struct {
-	Time             string
+	Time             int64
 	IncomingCalls    int
 	IncomingAband    int
-	IncomingTime     string
+	IncomingTime     int
 	IncomingCCS      float64
 	OutgoingCalls    int
 	OutgoingComp     int
-	OutgoingTime     string
+	OutgoingTime     int
 	OutgoingCCS      float64
 	AllBusyPercent   int
 	TimeMaintPercent int
 }
 type AgentReportRecord struct {
-	Time             string
+	Time             int64
 	ACDCalls         int
-	AvgTalkTime      string
-	TotalAfterCall   string
-	TotalAvailTime   string
-	TotalAUXOther    string
+	AvgTalkTime      int
+	TotalAfterCall   int
+	TotalAvailTime   int
+	TotalAUXOther    int
 	ExtnCalls        int
-	AvgExtnTime      string
-	TotalTimeStaffed string
-	TotalHoldTime    string
+	AvgExtnTime      int
+	TotalTimeStaffed int
+	TotalHoldTime    int
 }
 type VDNReportRecord struct {
-	Time             string
+	Time             int64
 	CallsOffered     int
 	ACDCalls         int
-	AvgSpeedAns      string
+	AvgSpeedAns      int
 	AbandCalls       int
-	AvgAbandTime     string
-	AvgTalkHold      string
+	AvgAbandTime     int
+	AvgTalkHold      int
 	ConnCalls        int
 	FlowOut          int
 	BusyDisc         int
@@ -102,16 +102,20 @@ func (report *Report) AddTrunkRecord(record TrunkReportRecord) []TrunkReportReco
 	return report.TrunkRecords
 }
 
-func convertClock(st string) string {
+func convertClock(st string) int {
 	var m, s int
 	n, err := fmt.Sscanf(st, "%d:%d", &m, &s)
 	if err != nil || n != 2 {
-		return ""
+		return 0
 	}
-	return strconv.Itoa(m*60 + s)
+	return m*60 + s
 }
 
 func convertDatetime(dateval string, timeval string) int64 {
+	day := strings.Split(dateval, ",")[0][4:]
+	month := dateval[:3]
+	year := dateval[len(dateval)-4:]
+	dateval = fmt.Sprintf("%s %02s, %s", month, day, year)
 	timevals := strings.Split(timeval, " ")
 	value := dateval + " " + timevals[0] + strings.ToUpper(timevals[1]) + " +0300"
 	layout := "Jan 02, 2006 03:04PM -0700"
@@ -119,11 +123,11 @@ func convertDatetime(dateval string, timeval string) int64 {
 	return t.Unix()
 }
 
-func convertTimeInterval(dateval string, interval string) string {
+func convertTimeInterval(dateval string, interval string) int64 {
 	timeval := "12:00 am"
 	timestamp := convertDatetime(dateval, timeval)
 	hours, _ := strconv.ParseInt(strings.Split(interval, ":")[0], 10, 64)
-	return strconv.FormatInt(hours*3600+timestamp, 10)
+	return hours*3600 + timestamp
 }
 
 func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
@@ -139,8 +143,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		var r Report
 
 		r.DateStamp = lines[2][66:78]
-		r.TimeStamp = lines[2][52:60]
-		r.TimeStamp = strconv.FormatInt(convertDatetime(r.DateStamp, r.TimeStamp), 10)
+		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.ServiceLevel, _ = strconv.Atoi(strings.TrimSpace(lines[4][74:78]))
@@ -169,16 +172,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 			fmt.Println(record)
 		}
 		fmt.Println(r)
-		sqlReports := `INSERT INTO public."Reports" ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
-		sqlReports += fmt.Sprintf(" ('%s', '%s', '%s', %d, '%s', %d, '%s', '%s', %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
-		sqlRecords := `INSERT INTO public."SplitReportRecords" ("ReportID", "Time", "ACDCalls", "AvgSpeedAns", "AbandCalls", "AvgAbandTime", "AvgTalkTime", "TotalAfterCall", "FlowIn", "FlowOut", "TotalAUX", "AvgStaffed", "InServiceLevelPercent") VALUES`
-		for _, record := range r.SplitRecords {
-			sqlRecords += fmt.Sprintf(" ($1, '%s', %d, '%s', %d, '%s', '%s', '%s', %d, %d, '%s', %f, %d),", record.Time, record.ACDCalls, record.AvgSpeedAns, record.AbandCalls, record.AvgAbandTime, record.AvgTalkTime, record.TotalAfterCall, record.FlowIn, record.FlowOut, record.TotalAUX, record.AvgStaffed, record.InServiceLevelPercent)
-		}
-		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
-
-		updateTables(sqlReports, sqlRecords, r)
-
+		updateTables(r)
 	} else if strings.Contains(file.Name(), "bcms_tru") {
 		buf := new(bytes.Buffer)
 		fullFilePath := ftpServerPath + file.Name()
@@ -191,8 +185,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		var r Report
 
 		r.DateStamp = lines[2][66:78]
-		r.TimeStamp = lines[2][52:60]
-		r.TimeStamp = strconv.FormatInt(convertDatetime(r.DateStamp, r.TimeStamp), 10)
+		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.Trunks, _ = strconv.Atoi(strings.TrimSpace(lines[4][74:78]))
@@ -220,16 +213,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 			fmt.Println(record)
 		}
 		fmt.Println(r)
-		sqlReports := `INSERT INTO public."Reports" ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
-		sqlReports += fmt.Sprintf(" ('%s', '%s', '%s', %d, '%s', %d, '%s', '%s', %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
-		sqlRecords := `INSERT INTO public."TrunkReportRecords" ("ReportID", "Time", "IncomingCalls", "IncomingAband", "IncomingTime", "IncomingCCS", "OutgoingCalls", "OutgoingComp", "OutgoingTime", "OutgoingCCS", "AllBusyPercent", "TimeMaintPercent") VALUES`
-		for _, record := range r.TrunkRecords {
-			sqlRecords += fmt.Sprintf(" ($1, '%s', %d, %d, '%s', %f, %d, %d, '%s', %f, %d, %d),", record.Time, record.IncomingCalls, record.IncomingAband, record.IncomingTime, record.IncomingCCS, record.OutgoingCalls, record.OutgoingComp, record.OutgoingTime, record.OutgoingCCS, record.AllBusyPercent, record.TimeMaintPercent)
-		}
-		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
-
-		updateTables(sqlReports, sqlRecords, r)
-
+		updateTables(r)
 	} else if strings.Contains(file.Name(), "bcms_ag_") {
 
 		buf := new(bytes.Buffer)
@@ -243,8 +227,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		var r Report
 
 		r.DateStamp = lines[2][66:78]
-		r.TimeStamp = lines[2][52:60]
-		r.TimeStamp = strconv.FormatInt(convertDatetime(r.DateStamp, r.TimeStamp), 10)
+		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.FileName = file.Name()
@@ -270,16 +253,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 			fmt.Println(record)
 		}
 		fmt.Println(r)
-		sqlReports := `INSERT INTO public."Reports" ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
-		sqlReports += fmt.Sprintf(" ('%s', '%s', '%s', %d, '%s', %d, '%s', '%s', %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
-		sqlRecords := `INSERT INTO public."AgentReportRecords" ("ReportID", "Time", "ACDCalls", "AvgTalkTime", "TotalAfterCall", "TotalAvailTime", "TotalAUXOther", "ExtnCalls", "AvgExtnTime", "TotalTimeStaffed", "TotalHoldTime") VALUES`
-		for _, record := range r.AgentRecords {
-			sqlRecords += fmt.Sprintf(" ($1, '%s', %d, '%s', '%s', '%s', '%s', %d, '%s', '%s', '%s'),", record.Time, record.ACDCalls, record.AvgTalkTime, record.TotalAfterCall, record.TotalAvailTime, record.TotalAUXOther, record.ExtnCalls, record.AvgExtnTime, record.TotalTimeStaffed, record.TotalHoldTime)
-		}
-		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
-
-		updateTables(sqlReports, sqlRecords, r)
-
+		updateTables(r)
 	} else if strings.Contains(file.Name(), "bcms_vdn_") {
 		if strings.Contains(file.Name(), "day") {
 			return
@@ -295,8 +269,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		var r Report
 
 		r.DateStamp = lines[2][66:78]
-		r.TimeStamp = lines[2][52:60]
-		r.TimeStamp = strconv.FormatInt(convertDatetime(r.DateStamp, r.TimeStamp), 10)
+		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
 		r.FileName = file.Name()
@@ -324,20 +297,102 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 			fmt.Println(record)
 		}
 		fmt.Println(r)
-
-		sqlReports := `INSERT INTO public."Reports" ("ReportType", "DateStamp", "TimeStamp", "Number", "Name", "ServiceLevel", "FileName", "SwitchName", "Trunks") VALUES`
-		sqlReports += fmt.Sprintf(" ('%s', '%s', '%s', %d, '%s', %d, '%s', '%s', %d) RETURNING id;", r.ReportType, r.DateStamp, r.TimeStamp, r.Number, r.Name, r.ServiceLevel, r.FileName, r.SwitchName, r.Trunks)
-		sqlRecords := `INSERT INTO public."VDNReportRecords" ("ReportID", "Time", "CallsOffered", "ACDCalls", "AvgSpeedAns", "AbandCalls", "AvgAbandTime", "AvgTalkHold", "ConnCalls", "FlowOut", "BusyDisc", "InServLvlPercent") VALUES`
-		for _, record := range r.VDNRecords {
-			sqlRecords += fmt.Sprintf(" ($1, '%s', %d, %d, '%s', %d, '%s', '%s', %d, %d, %d, %d),", record.Time, record.CallsOffered, record.ACDCalls, record.AvgSpeedAns, record.AbandCalls, record.AvgAbandTime, record.AvgTalkHold, record.ConnCalls, record.FlowOut, record.BusyDisc, record.InServLvlPercent)
-		}
-		sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
-
-		updateTables(sqlReports, sqlRecords, r)
+		updateTables(r)
 	}
 }
 
-func updateTables(sqlReports string, sqlRecords string, r Report) {
+func updateTables(r Report) {
+	var sqlRecords string
+	switch r.ReportType {
+	case "Split":
+		sqlRecords = `INSERT INTO public."SplitReportRecords" (time, acdcalls, avgspeedans, abandcalls, avgabandtime, avgtalktime, totalaftercall, flowin, flowout, totalaux, avgstaffed, inservicelevelpercent, number, name, servicelevel, switchname, filename) VALUES`
+		for _, record := range r.SplitRecords {
+			sqlRecords += fmt.Sprintf(" (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %f, %d, %d, '%s', %d, '%s', '%s'),",
+				record.Time,
+				record.ACDCalls,
+				record.AvgSpeedAns,
+				record.AbandCalls,
+				record.AvgAbandTime,
+				record.AvgTalkTime,
+				record.TotalAfterCall,
+				record.FlowIn,
+				record.FlowOut,
+				record.TotalAUX,
+				record.AvgStaffed,
+				record.InServiceLevelPercent,
+				r.Number,
+				r.Name,
+				r.ServiceLevel,
+				r.SwitchName,
+				r.FileName)
+		}
+	case "Agent":
+		sqlRecords = `INSERT INTO public."AgentReportRecords" (time, acdcalls, avgtalktime, totalaftercall, totalavailtime, totalauxother, extncalls, avgextntime, totaltimestaffed, totalholdtime, number, name, servicelevel, switchname, filename) VALUES`
+		for _, record := range r.AgentRecords {
+			sqlRecords += fmt.Sprintf(" (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, '%s', %d, '%s', '%s'),",
+				record.Time,
+				record.ACDCalls,
+				record.AvgTalkTime,
+				record.TotalAfterCall,
+				record.TotalAvailTime,
+				record.TotalAUXOther,
+				record.ExtnCalls,
+				record.AvgExtnTime,
+				record.TotalTimeStaffed,
+				record.TotalHoldTime,
+				r.Number,
+				r.Name,
+				r.ServiceLevel,
+				r.SwitchName,
+				r.FileName)
+		}
+	case "Trunk":
+		sqlRecords = `INSERT INTO public."TrunkReportRecords" (time, incomingcalls, incomingaband, incomingtime, incomingccs, outgoingcalls, outgoingcomp, outgoingtime, outgoingccs, allbusypercent, timemaintpercent, trunks, number, name, servicelevel, switchname, filename) VALUES`
+		for _, record := range r.TrunkRecords {
+			sqlRecords += fmt.Sprintf(" (%d, %d, %d, %d, %f, %d, %d, %d, %f, %d, %d, %d, %d, '%s', %d, '%s', '%s'),",
+				record.Time,
+				record.IncomingCalls,
+				record.IncomingAband,
+				record.IncomingTime,
+				record.IncomingCCS,
+				record.OutgoingCalls,
+				record.OutgoingComp,
+				record.OutgoingTime,
+				record.OutgoingCCS,
+				record.AllBusyPercent,
+				record.TimeMaintPercent,
+				r.Trunks,
+				r.Number,
+				r.Name,
+				r.ServiceLevel,
+				r.SwitchName,
+				r.FileName)
+		}
+	case "VDN":
+		sqlRecords = `INSERT INTO public."VDNReportRecords" (time, callsoffered, acdcalls, avgspeedans, abandcalls, avgabandtime, avgtalkhold, conncalls, flowout, busydisc, inservlvlpercent, number, name, servicelevel, switchname, filename) VALUES`
+		for _, record := range r.VDNRecords {
+			sqlRecords += fmt.Sprintf(" (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, '%s', %d, '%s', '%s'),",
+				record.Time,
+				record.CallsOffered,
+				record.ACDCalls,
+				record.AvgSpeedAns,
+				record.AbandCalls,
+				record.AvgAbandTime,
+				record.AvgTalkHold,
+				record.ConnCalls,
+				record.FlowOut,
+				record.BusyDisc,
+				record.InServLvlPercent,
+				r.Number,
+				r.Name,
+				r.ServiceLevel,
+				r.SwitchName,
+				r.FileName)
+		}
+	}
+	sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
+	sqlReports := fmt.Sprintf(`INSERT INTO public."Reports" ("FileName") VALUES ('%s') RETURNING 1;`, r.FileName)
+
 	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL := "postgres://username:password@localhost:5432/database_name"
 	dbpool, err := pgxpool.Connect(context.Background(), connectionString)
 	if err != nil {
@@ -346,15 +401,13 @@ func updateTables(sqlReports string, sqlRecords string, r Report) {
 	}
 	defer dbpool.Close()
 
-	reportID := 0
-	err = dbpool.QueryRow(context.Background(), sqlReports).Scan(&reportID)
+	returnVal := 0
+	err = dbpool.QueryRow(context.Background(), sqlReports).Scan(&returnVal)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
 	}
-
-	returnVal := 0
-	err = dbpool.QueryRow(context.Background(), sqlRecords, reportID).Scan(&returnVal)
+	err = dbpool.QueryRow(context.Background(), sqlRecords).Scan(&returnVal)
 	if err != nil && err != pgx.ErrNoRows {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
@@ -366,7 +419,7 @@ func excludeParcedFiles(files []os.FileInfo) []os.FileInfo {
 }
 
 func getParsedFiles() (res []string) {
-	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL := "postgres://username:password@localhost:5432/database_name"
+	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL "postgres://username:password@localhost:5432/database_name"
 	dbpool, err := pgxpool.Connect(context.Background(), connectionString)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
@@ -412,10 +465,10 @@ func xor(list1 []fs.FileInfo, list2 []string) []fs.FileInfo {
 }
 
 func main() {
-	ftpServerURL := os.Getenv("FTP_IP")   // FTP_IP = "10.249.32.5"
-	ftpServerPath := os.Getenv("FTP_DIR") // FTP_DIR = "/BCMS 103/"
-	username := os.Getenv("FTP_USERNAME") // FTP_USERNAME = "pbx103"
-	password := os.Getenv("FTP_PASSWORD") // FTP_PASSWORD = "pbx10301"
+	ftpServerURL := os.Getenv("FTP_IP")   // FTP_IP "10.249.32.5"
+	ftpServerPath := os.Getenv("FTP_DIR") // FTP_DIR "/BCMS 103/"
+	username := os.Getenv("FTP_USERNAME") // FTP_USERNAME "pbx103"
+	password := os.Getenv("FTP_PASSWORD") // FTP_PASSWORD "pbx10301"
 
 	config := goftp.Config{
 		User:               username,
@@ -431,7 +484,6 @@ func main() {
 	}
 
 	files, err := client.ReadDir(ftpServerPath)
-
 	files = excludeParcedFiles(files)
 
 	if err != nil {
