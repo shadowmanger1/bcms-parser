@@ -305,7 +305,7 @@ func updateTables(r Report) {
 	var sqlRecords string
 	switch r.ReportType {
 	case "Split":
-		sqlRecords = `INSERT INTO public."SplitReportRecords" (time, acdcalls, avgspeedans, abandcalls, avgabandtime, avgtalktime, totalaftercall, flowin, flowout, totalaux, avgstaffed, inservicelevelpercent, number, name, servicelevel, switchname, filename) VALUES`
+		sqlRecords = `INSERT INTO public.splitreportrecords (time, acdcalls, avgspeedans, abandcalls, avgabandtime, avgtalktime, totalaftercall, flowin, flowout, totalaux, avgstaffed, inservicelevelpercent, number, name, servicelevel, switchname, filename) VALUES`
 		for _, record := range r.SplitRecords {
 			sqlRecords += fmt.Sprintf(" (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %f, %d, %d, '%s', %d, '%s', '%s'),",
 				record.Time,
@@ -327,7 +327,7 @@ func updateTables(r Report) {
 				r.FileName)
 		}
 	case "Agent":
-		sqlRecords = `INSERT INTO public."AgentReportRecords" (time, acdcalls, avgtalktime, totalaftercall, totalavailtime, totalauxother, extncalls, avgextntime, totaltimestaffed, totalholdtime, number, name, servicelevel, switchname, filename) VALUES`
+		sqlRecords = `INSERT INTO public.agentreportrecords (time, acdcalls, avgtalktime, totalaftercall, totalavailtime, totalauxother, extncalls, avgextntime, totaltimestaffed, totalholdtime, number, name, servicelevel, switchname, filename) VALUES`
 		for _, record := range r.AgentRecords {
 			sqlRecords += fmt.Sprintf(" (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, '%s', %d, '%s', '%s'),",
 				record.Time,
@@ -347,7 +347,7 @@ func updateTables(r Report) {
 				r.FileName)
 		}
 	case "Trunk":
-		sqlRecords = `INSERT INTO public."TrunkReportRecords" (time, incomingcalls, incomingaband, incomingtime, incomingccs, outgoingcalls, outgoingcomp, outgoingtime, outgoingccs, allbusypercent, timemaintpercent, trunks, number, name, servicelevel, switchname, filename) VALUES`
+		sqlRecords = `INSERT INTO public.trunkreportrecords (time, incomingcalls, incomingaband, incomingtime, incomingccs, outgoingcalls, outgoingcomp, outgoingtime, outgoingccs, allbusypercent, timemaintpercent, trunks, number, name, servicelevel, switchname, filename) VALUES`
 		for _, record := range r.TrunkRecords {
 			sqlRecords += fmt.Sprintf(" (%d, %d, %d, %d, %f, %d, %d, %d, %f, %d, %d, %d, %d, '%s', %d, '%s', '%s'),",
 				record.Time,
@@ -369,7 +369,7 @@ func updateTables(r Report) {
 				r.FileName)
 		}
 	case "VDN":
-		sqlRecords = `INSERT INTO public."VDNReportRecords" (time, callsoffered, acdcalls, avgspeedans, abandcalls, avgabandtime, avgtalkhold, conncalls, flowout, busydisc, inservlvlpercent, number, name, servicelevel, switchname, filename) VALUES`
+		sqlRecords = `INSERT INTO public.vdnreportrecords (time, callsoffered, acdcalls, avgspeedans, abandcalls, avgabandtime, avgtalkhold, conncalls, flowout, busydisc, inservlvlpercent, number, name, servicelevel, switchname, filename) VALUES`
 		for _, record := range r.VDNRecords {
 			sqlRecords += fmt.Sprintf(" (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, '%s', %d, '%s', '%s'),",
 				record.Time,
@@ -391,7 +391,7 @@ func updateTables(r Report) {
 		}
 	}
 	sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
-	sqlReports := fmt.Sprintf(`INSERT INTO public."Reports" ("FileName") VALUES ('%s') RETURNING 1;`, r.FileName)
+	sqlReports := fmt.Sprintf(`INSERT INTO public.reports ("FileName") VALUES ('%s') RETURNING 1;`, r.FileName)
 
 	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL := "postgres://username:password@localhost:5432/database_name"
 	dbpool, err := pgxpool.Connect(context.Background(), connectionString)
@@ -427,7 +427,7 @@ func getParsedFiles() (res []string) {
 	}
 	defer dbpool.Close()
 
-	rows, err := dbpool.Query(context.Background(), `SELECT "FileName" FROM public."Reports"`)
+	rows, err := dbpool.Query(context.Background(), `SELECT filename FROM public.reports`)
 	if err != nil {
 		panic(err)
 	}
