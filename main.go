@@ -120,6 +120,8 @@ func convertDatetime(dateval string, timeval string) int64 {
 	value := dateval + " " + timevals[0] + strings.ToUpper(timevals[1]) + " +0300"
 	layout := "Jan 02, 2006 03:04PM -0700"
 	t, _ := time.Parse(layout, value)
+	println(dateval)
+	println(t.Unix())
 	return t.Unix()
 }
 
@@ -169,9 +171,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 			record.InServiceLevelPercent, _ = strconv.Atoi(strings.TrimSpace(line[75:78]))
 
 			r.AddSplitRecord(record)
-			fmt.Println(record)
 		}
-		fmt.Println(r)
 		updateTables(r)
 	} else if strings.Contains(file.Name(), "bcms_tru") {
 		buf := new(bytes.Buffer)
@@ -210,9 +210,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 			record.TimeMaintPercent, _ = strconv.Atoi(strings.TrimSpace(line[75:78]))
 
 			r.AddTrunkRecord(record)
-			fmt.Println(record)
 		}
-		fmt.Println(r)
 		updateTables(r)
 	} else if strings.Contains(file.Name(), "bcms_ag_") {
 
@@ -250,9 +248,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 			record.TotalHoldTime = convertClock(strings.TrimSpace(line[70:77]))
 
 			r.AddAgentRecord(record)
-			fmt.Println(record)
 		}
-		fmt.Println(r)
 		updateTables(r)
 	} else if strings.Contains(file.Name(), "bcms_vdn_") {
 		if strings.Contains(file.Name(), "day") {
@@ -294,9 +290,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 			record.InServLvlPercent, _ = strconv.Atoi(strings.TrimSpace(line[70:73]))
 
 			r.AddVDNRecord(record)
-			fmt.Println(record)
 		}
-		fmt.Println(r)
 		updateTables(r)
 	}
 }
