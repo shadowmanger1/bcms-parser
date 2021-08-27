@@ -147,7 +147,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 
 		var r Report
 		println(file.Name())
-		r.DateStamp = lines[2][66:78]
+		r.DateStamp = strings.TrimSpace(lines[2][65:78])
 		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
@@ -187,7 +187,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 
 		var r Report
 		println(file.Name())
-		r.DateStamp = lines[2][66:78]
+		r.DateStamp = strings.TrimSpace(lines[2][65:78])
 		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
@@ -227,7 +227,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 
 		var r Report
 		println(file.Name())
-		r.DateStamp = lines[2][66:78]
+		r.DateStamp = strings.TrimSpace(lines[2][65:78])
 		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
@@ -267,7 +267,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 
 		var r Report
 		println(file.Name())
-		r.DateStamp = lines[2][66:78]
+		r.DateStamp = strings.TrimSpace(lines[2][65:78])
 		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
 		r.Name = strings.TrimSpace(lines[4][13:45])
