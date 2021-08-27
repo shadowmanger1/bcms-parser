@@ -146,7 +146,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		lines := strings.Split(buf.String(), "\n")
 
 		var r Report
-
+		println(file.Name())
 		r.DateStamp = lines[2][66:78]
 		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
@@ -186,7 +186,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		lines := strings.Split(buf.String(), "\n")
 
 		var r Report
-
+		println(file.Name())
 		r.DateStamp = lines[2][66:78]
 		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
@@ -226,7 +226,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		lines := strings.Split(buf.String(), "\n")
 
 		var r Report
-
+		println(file.Name())
 		r.DateStamp = lines[2][66:78]
 		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
@@ -266,7 +266,7 @@ func parseFile(file os.FileInfo, client *goftp.Client, ftpServerPath string) {
 		lines := strings.Split(buf.String(), "\n")
 
 		var r Report
-
+		println(file.Name())
 		r.DateStamp = lines[2][66:78]
 		r.TimeStamp = convertDatetime(r.DateStamp, lines[2][52:60])
 		r.Number, _ = strconv.Atoi(strings.TrimSpace(lines[3][13:44]))
@@ -487,7 +487,7 @@ func main() {
 		panic(err)
 	}
 
-	maxGoroutines := 10
+	maxGoroutines := 1
 	guard := make(chan struct{}, maxGoroutines)
 
 	var wg sync.WaitGroup
