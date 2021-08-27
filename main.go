@@ -470,7 +470,7 @@ func main() {
 	config := goftp.Config{
 		User:               username,
 		Password:           password,
-		ConnectionsPerHost: 10,
+		ConnectionsPerHost: 15,
 		Timeout:            10 * time.Second,
 		Logger:             os.Stderr,
 	}
@@ -487,7 +487,7 @@ func main() {
 		panic(err)
 	}
 
-	maxGoroutines := 1
+	maxGoroutines := 15
 	guard := make(chan struct{}, maxGoroutines)
 
 	var wg sync.WaitGroup
