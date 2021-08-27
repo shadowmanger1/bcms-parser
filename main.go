@@ -117,7 +117,8 @@ func convertDatetime(dateval string, timeval string) int64 {
 	year := strings.TrimSpace(strings.Split(dateval, ",")[1])
 	dateval = fmt.Sprintf("%s %02s, %s", month, day, year)
 	timevals := strings.Split(timeval, " ")
-	value := dateval + " " + timevals[0] + strings.ToUpper(timevals[1]) + " +0300"
+	clock := strings.Split(timevals[0], ":")
+	value := fmt.Sprintf("%s %02s:%s%s +0300", dateval, clock[0], clock[1], strings.ToUpper(timevals[1]))
 	layout := "Jan 02, 2006 03:04PM -0700"
 	t, _ := time.Parse(layout, value)
 	if t.Unix() < 0 {
