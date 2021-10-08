@@ -121,6 +121,7 @@ func convertDatetime(dateval string, timeval string) int64 {
 	value := fmt.Sprintf("%s %02s:%s%s +0300", dateval, clock[0], clock[1], strings.ToUpper(timevals[1]))
 	layout := "Jan 02, 2006 03:04PM -0700"
 	t, _ := time.Parse(layout, value)
+	t = t.AddDate(0, 0, -1) // Substructing one day because report for the day generates after midnight
 	if t.Unix() < 0 {
 		println(dateval)
 		println(t.Unix())
@@ -391,7 +392,7 @@ func updateTables(r Report) {
 	sqlRecords = sqlRecords[:len(sqlRecords)-1] + " RETURNING 1;"
 	sqlReports := fmt.Sprintf(`INSERT INTO public.reports (filename) VALUES ('%s') RETURNING 1;`, r.FileName)
 
-	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL := "postgres://username:password@localhost:5432/database_name"
+	connectionString := os.Getenv("DATABASE_URL") // DATABASE_URL "postgres://username:password@localhost:5432/database_name"
 	dbpool, err := pgxpool.Connect(context.Background(), connectionString)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
